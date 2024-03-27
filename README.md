@@ -18,8 +18,8 @@ Este repositorio está destinado a complementar los videos de mi canal de YouTub
 
 Puedes seguirme en mis redes sociales para obtener actualizaciones sobre nuevos videos, compartir tus ideas y sugerencias, o simplemente para conectarte:
 
-- YouTube: [Insertar enlace a tu canal de YouTube aquí](https://www.youtube.com/@neuronalpy/videos)
-- Instagram: [Insertar enlace a tu perfil de Instagram aquí](https://www.instagram.com/esteban.agu1)
-- LinkedIn: [Insertar enlace a tu perfil de LinkedIn aquí](https://www.linkedin.com/in/estebanagu/)
+- YouTube: [neuronalpy](https://www.youtube.com/@neuronalpy/videos)
+- Instagram: [esteban.agu1](https://www.instagram.com/esteban.agu1)
+- LinkedIn: [eaguero](https://www.linkedin.com/in/estebanagu/)
 
 ¡No dudes en enviarme un mensaje si tienes alguna pregunta o sugerencia!
