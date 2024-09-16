@@ -1,0 +1,3 @@
+¿QUE ES APACHE AIRFLOW?
+
+Apache Airflow es una plataforma de código abierto para la automatización, programación y monitoreo de flujos de trabajo (workflows) en proyectos de datos. Permite crear y gestionar tareas complejas mediante la creación de DAGs (grafos acíclicos dirigidos), lo que facilita la ejecución secuencial o paralela de procesos. Airflow es ideal para coordinar tareas en pipelines de datos, como la extracción, transformación y carga (ETL), y es muy utilizado en entornos de big data y ciencia de datos.
