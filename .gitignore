@@ -1,5 +1,7 @@
 .venv
+venv
 csv/
 logs/
 env
 scheduler/
+__pycache__/
