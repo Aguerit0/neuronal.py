@@ -86,6 +86,13 @@ x-airflow-common:
       condition: service_healthy
 
 services:
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=example@gmail.com
+      - PGADMIN_DEFAULT_PASSWORD=986455
+    ports:
+      - "5050:80"
   postgres:
     image: postgres:13
     environment:
@@ -95,7 +102,7 @@ services:
     volumes:
       - postgres-db-volume:/var/lib/postgresql/data
     ports:
-      - 5432:5432
+      - 5433:5432
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "airflow"]
       interval: 10s
