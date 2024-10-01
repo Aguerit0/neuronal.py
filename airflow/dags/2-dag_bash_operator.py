@@ -1,32 +1,41 @@
-from datetime import datetime, timedelta
-from airflow.operators.bash import BashOperator
-from airflow import DAG
+# mkdir -pv /tmp/example
+# echo "Hola, mundo!" > /tmp/example/output.txt
+# ls /tmp/example
+# rm -r /tmp/example
+# trigger_rule = 'all_success',
 
+from airflow import DAG
+from airflow.operators.bash import BashOperator
+from datetime import datetime, timedelta
 
 default_args = {
     'owner': 'airflow',
     'retries': 5,
-    'retry_delay': timedelta(minutes=5)
+    'retries_delay': timedelta(minutes=1)
 }
 
-
 with DAG(
-    dag_id = 'dag_bash_operator_v03',
+    dag_id = 'dag_bash_2',
+    description = 'dag_bash',
+    start_date = datetime(2024, 9, 25),
+    schedule_interval = '@daily',
     default_args = default_args,
-    description = 'DAG with BashOperator',
-    start_date = datetime(2024, 9, 10),
-    schedule_interval = timedelta(days=1),
-    )as dag:
+)as dag:
     task1 = BashOperator(
-        task_id = 'task1',
-        bash_command = 'ls',
+        task_id = 'task_mkdir',
+        bash_command = 'mkdir -pv /tmp/example',
     )
     task2 = BashOperator(
-        task_id = 'task2',
-        bash_command = 'mkdir example',
-        )
-    task3 = BashOperator(
-        task_id = 'task3',
-        bash_command = 'rm -r example',
+        task_id = 'task_echo',
+        bash_command = 'echo "Hola, mundo!" > /tmp/example/output.txt',
     )
-    task1 >> task2 >> task3
+    task3 = BashOperator(
+        task_id = 'task_ls',
+        bash_command = 'ls /tmp/example',
+    )
+    task4 = BashOperator(
+        task_id = 'task_remove',
+        bash_command = 'rm -r /tmp/example',
+    )
+    
+    task1 >> task2 >> task3 >> task4
