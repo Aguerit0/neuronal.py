@@ -60,3 +60,7 @@
     Base de datos: airflow
     Usuario: airflow
     Contraseña: airflow
+
+
+4- add in sql:
+    autocommit=True
