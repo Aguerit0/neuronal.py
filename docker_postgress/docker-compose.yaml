@@ -87,17 +87,17 @@ x-airflow-common:
 
 services:
   pgadmin:
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U airflow"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
         image: dpage/pgadmin4
         environment:
-        PGADMIN_DEFAULT_EMAIL: example@gmail.com
-        PGADMIN_DEFAULT_PASSWORD: 9864
+            PGADMIN_DEFAULT_EMAIL: example@gmail.com
+            PGADMIN_DEFAULT_PASSWORD: 9864
         ports:
         - "5050:80"
-        healthcheck:
-          test: ["CMD-SHELL", "pg_isready -U airflow"]
-          interval: 10s
-          timeout: 5s
-          retries: 5
   postgres:
     image: postgres:13
     environment:

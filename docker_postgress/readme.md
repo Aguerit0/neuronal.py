@@ -22,7 +22,7 @@
     docker-compose up --build
 
 5- add in docker.yml:
-      postgres:
+      pgadmin:
         ...
         healthcheck:
             test: ["CMD-SHELL", "pg_isready -U airflow"]
