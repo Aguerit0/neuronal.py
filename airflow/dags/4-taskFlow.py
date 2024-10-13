@@ -10,7 +10,7 @@ import pandas as pd
     schedule_interval="@daily",
     start_date=datetime(2024, 10, 11),
     catchup=False,
-    description="Un DAG ejemplo usando TaskFlow API con branching y control de flujo"
+    description="Etl with real data"
 )
 def etl_taskflow_with_real_data():
 
@@ -19,7 +19,6 @@ def etl_taskflow_with_real_data():
         iris = load_iris()
         df = pd.DataFrame(data=iris.data, columns=iris.feature_names)
         df['target'] = iris.target
-        print("Extrayendo datos...")
         print(df.head())
         return df.to_dict(orient="records") 
 
@@ -27,19 +26,17 @@ def etl_taskflow_with_real_data():
     def transform(data):
         df = pd.DataFrame(data)
         df['normalized_sepal_length'] = df['sepal length (cm)'] / df['sepal length (cm)'].max()
-        print(f"Transformando datos: Normalizando sepal length")
         return df.to_dict(orient="records")
 
     @task
     def check_data(data):
         df = pd.DataFrame(data)
         avg_value = df['normalized_sepal_length'].mean()
-        print(f"Promedio del sepal length normalizado: {avg_value}")
         if avg_value > 0.5:
-            print("Los datos son válidos para cargar.")
+            print("Data is valid")
             return True
         else:
-            print("Los datos no cumplen con los criterios para cargar.")
+            print("Data is not valid")
             return False
 
     @task.branch
