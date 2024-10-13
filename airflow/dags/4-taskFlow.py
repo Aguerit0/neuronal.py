@@ -6,7 +6,7 @@ from sklearn.datasets import load_iris
 import pandas as pd
 
 @dag(
-    dag_id = 'etl-taskflow-with-irisdata-v01',
+    dag_id = 'taskflow_v02',
     schedule_interval="@daily",
     start_date=datetime(2024, 10, 11),
     catchup=False,
@@ -48,7 +48,7 @@ def etl_taskflow_with_real_data():
 
     @task
     def load_data():
-        print("datos cargados")
+        return 'Data loaded successfully'
 
     skip_load = EmptyOperator(task_id="skip_load")
 
@@ -56,7 +56,7 @@ def etl_taskflow_with_real_data():
     transformed_data = transform(data)
     is_valid = check_data(transformed_data)
     branch = decide_branch(is_valid)
-
-    branch >> [load_data(), skip_load]
+    branch >> load_data()
+    branch >> skip_load
 
 etl_dag = etl_taskflow_with_real_data()
