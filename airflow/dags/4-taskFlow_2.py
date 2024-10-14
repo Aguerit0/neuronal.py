@@ -7,18 +7,18 @@ aplicarle un indicador al precio para ver si existe una posible C/V
 
 from airflow.decorators import dag, task
 from datetime import datetime, timedelta
+from airflow.providers.postgres.operators.postgres import PostgresOperator
+#import sensor airflow
+from airflow.providers.common.sql.sensors.sql import SqlSensor
+#? airflow.sensors.sql import SqlSensor
 
 import requests
 import pandas as pd
-#pip install pycoingecko matplotlib
 
-import pycoingecko
+from binance import Client
+binance_client = Client()
+period = 14 #for rsi
 
-
-#initialize coingecjo api client
-coinGecko = pycoingecko.CoinGeckoAPI()
-#get historical price brc
-data = 
 
 @dag(
     dag_id = 'taskflow_v01',
@@ -29,18 +29,113 @@ data =
 
 
 def etl_btc_data():
-    @task
+    #task-1: extract btc price data from binance api
+    @task(task_id = 'extract_btc_price')
     def extract_btc_price():
-        data_crypto = coinGecko.get_coin_market_chart_by_id(id='bitcoin', vs_currency='usd', days=30)
-        dates = [data[0] for data in data_crypto['prices']]
-        dates = [
-            datetime.datetime.fromtimestamp(date/1000)
-            for date in dates
-        ]
-        prices = [data[1] for data in data_crypto['prices']]
-        return pd.DataFrame({'date': dates, 'price': prices})
+        ohlcv_data = binance_client.get_klines(symbol='BTCUSDT', interval=Client.KLINE_INTERVAL_1DAY, limit=30)
         
+        # Extraer y estructurar los datos
+        df = pd.DataFrame(ohlcv_data, columns=[
+            "timestamp", "open", "high", "low", "close", "volume", "close_time",
+            "quote_asset_volume", "number_of_trades", "taker_buy_base_asset_volume",
+            "taker_buy_quote_asset_volume", "ignore"
+        ])
         
-    @task
-    def process_data(data):
-        df = pd.DataFrame(data)
+        # Convertir el timestamp a un formato legible
+        df["timestamp"] = pd.to_datetime(df["timestamp"], unit='ms')
+        df["close_time"] = pd.to_datetime(df["close_time"], unit='ms')
+
+        print(df.head())
+        return df
+        
+    #task-2: calculate rsi value
+    @task(task_id = 'calculate_rsi')
+    def calculate_rsi(data):
+        df = data.copy()
+        df["close"] = df["close"].astype(float)
+        delta = df["close"].diff()
+
+        up, down = delta.clip(lower=0), delta.clip(upper=0).abs()
+        _gain = up.ewm(com=(period - 1), min_periods=period).mean()
+        _loss = down.ewm(com=(period - 1), min_periods=period).mean()
+
+        RS = _gain / _loss
+        rsi = 100 - (100 / (1 + RS))
+
+        return rsi.iloc[-1]  # return rsi series
+
+    #task-3: check signal buy/sell rsi
+    @task(task_id = 'check_signal')
+    def checksignal(rsi):
+        if rsi < 30:
+            return 0 #0 = buy
+        elif rsi > 70:
+            return 1 #1 = sell
+        else:
+            return 2 #2 = hold
+    
+    
+    #add sensor for the task 4
+    sensor_check_exist_db = SqlSensor(
+        task_id = 'check_exist_db',
+        conn_id = 'postgres_airflow',
+        sql = 'SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = \'signal_rsi_db\')',
+        mode = 'poke',
+        poke_interval = 10,
+        timeout = 600,
+    )
+    
+    #task-4: save signal in database
+    @task(task_id = 'db_create')
+    def db_create(signal):
+        postgres_conn_id = 'postgres_airflow'
+        sql = "CREATE DATABASE signal_rsi_db;"
+        autocommit = True
+    
+
+    #add sensor for the task 5
+    sensor_check_exist_table = SqlSensor(
+        task_id = 'check_exist_table',
+        conn_id = 'postgres_airflow',
+        sql = 'SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = \'rsi_data\')',
+        mode = 'poke',
+        poke_interval = 10,
+        timeout = 600,
+    )   
+    #task-5: create table in database
+    @task(task_id = 'create_table')
+    def create_table():
+        postgres_conn_id = 'postgres_airflow'
+        database = 'signal_rsi_db'
+        sql = "CREATE TABLE rsi_data (rsi float);"
+        autocommit = True
+    
+    #task-6: insert data in table
+    @task(task_id = 'insert_data')
+    def insert_data(rsi):
+        postgres_conn_id = 'postgres_airflow'
+        database = 'signal_rsi_db'
+        sql = "INSERT INTO rsi_data (rsi) VALUES (%s);"
+        autocommit = True
+    
+    #task-7: select data in table
+    @task(task_id = 'select_data')
+    def select_data():
+        postgres_conn_id = 'postgres_airflow'
+        database = 'signal_rsi_db'
+        sql = "SELECT * FROM rsi_data;"
+    
+    
+    #running tasks
+    data = extract_btc_price()
+    rsi = calculate_rsi(data)
+
+    sensor_check_exist_db >> db_create()
+
+    sensor_check_exist_table >> create_table()
+
+    insert_data(signal)
+    select_data()
+        
+
+etl_btc_data()
