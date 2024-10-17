@@ -1,7 +1,15 @@
 """
-DESCRIPCIÓN
-la idea es realizar una obtención del último precio (de alguna crypto),
-aplicarle un indicador al precio para ver si existe una posible C/V
+Descripción del Proyecto: Predicción de Señales de Compra/Venta de Criptomonedas
+El proyecto consiste en la creación de un sistema automatizado para la extracción y análisis de datos del mercado de criptomonedas, aplicando indicadores técnicos para generar señales de compra/venta. Utilizando la API de Binance, el sistema obtiene los datos históricos de precios de Bitcoin (u otras criptomonedas), calcula el índice RSI (Relative Strength Index) y almacena los resultados en una base de datos para su posterior análisis. El flujo de trabajo se orquesta con Airflow, y la integración con AWS permite escalabilidad, monitoreo y almacenamiento temporal para asegurar la confiabilidad del sistema.
+
+Motivación del Uso de S3: Los datos procesados se almacenan temporalmente en Amazon S3 como una medida para manejar de forma segura la llegada de información final a la base de datos. De esta manera, si ocurre un error en el proceso de almacenamiento en RDS, los datos siguen disponibles en S3 y pueden recuperarse sin necesidad de volver a procesar o extraer datos desde la API de Binance.
+
+Pasos del Proyecto:
+- Extracción de datos: Se utiliza una función Lambda para obtener datos de precios desde la API de Binance. Los datos se almacenan temporalmente en S3 para asegurar la persistencia de la información.
+- Procesamiento de datos: Lambda procesa los datos almacenados en S3, aplicando el cálculo del indicador RSI.
+- Almacenamiento final: Los resultados de RSI se almacenan en una base de datos administrada en Amazon RDS (PostgreSQL), donde se mantendrán para análisis y consulta.
+- Monitoreo y Alertas: CloudWatch monitoriza la ejecución de las funciones Lambda y el estado de la base de datos RDS, generando alertas si ocurre algún fallo. Opcionalmente, se pueden enviar notificaciones por medio de Amazon SNS.
+- Orquestación: Airflow se utiliza para orquestar la secuencia de tareas, permitiendo la ejecución automatizada diaria de las funciones de extracción, procesamiento y almacenamiento.
 """
 
 
