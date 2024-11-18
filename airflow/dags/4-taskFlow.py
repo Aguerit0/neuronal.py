@@ -1,59 +1,90 @@
+"""
+-create bucket s3: https://docs.aws.amazon.com/AmazonS3/latest/userguide/GetStartedWithS3.html#creating-bucket
+-create iam role to acces bucket: https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraMySQL.Integrating.Authorizing.IAM.S3CreatePolicy.html
+-get credentials: https://docs.aws.amazon.com/es_es/cli/latest/userguide/cli-configure-files.html
+
+IMPORTANT
+1- config aws cli = aws configure -> terminal
+2- create credentials file
+
+"""
+
 from airflow.decorators import dag, task
-from airflow.utils.dates import days_ago
 from datetime import datetime, timedelta
-from airflow.operators.empty import EmptyOperator
-from sklearn.datasets import load_iris
 import pandas as pd
+import requests
+import boto3
+from io import StringIO
+from credentials import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, BUCKET_NAME, REGION_NAME, OBJECT_NAME
+
 
 @dag(
-    dag_id = 'taskflow_v02',
-    schedule_interval="@daily",
-    start_date=datetime(2024, 10, 11),
+    dag_id = 'dag_taskflow',
+    schedule_interval=timedelta(minutes=1),
+    start_date=datetime(2024, 11, 17),
     catchup=False,
-    description="Etl with real data"
+    description="Example DAG using TaskFlow",
+    max_active_runs=1
 )
-def etl_taskflow_with_real_data():
 
-    @task
-    def extract():
-        iris = load_iris()
-        df = pd.DataFrame(data=iris.data, columns=iris.feature_names)
-        df['target'] = iris.target
-        print(df.head())
-        return df.to_dict(orient="records") 
 
-    @task
-    def transform(data):
+#task-1: extract data from api binance
+def etl_btc_data():
+    @task(task_id='extract_btc_price')
+    def extract_btc_price():
+        URL_API_BINANCE = 'https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=100'
+        response = requests.get(URL_API_BINANCE)
+        response.raise_for_status()
+        data = response.json()
         df = pd.DataFrame(data)
-        df['normalized_sepal_length'] = df['sepal length (cm)'] / df['sepal length (cm)'].max()
-        return df.to_dict(orient="records")
+        # Serialize DataFrame to JSON for task transfer
+        return df.to_json(orient="records")
+    
+    # Task 2: Upload data to S3
+    @task(task_id='upload_to_s3')
+    def upload_to_s3(data_json):
+        if data_json:
+            s3 = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY, region_name=REGION_NAME)
+            bucket_name = BUCKET_NAME
+            object_name = OBJECT_NAME
 
-    @task
-    def check_data(data):
-        df = pd.DataFrame(data)
-        avg_value = df['normalized_sepal_length'].mean()
-        if avg_value > 0.5:
-            print("Data is valid")
-            return True
-        else:
-            print("Data is not valid")
-            return False
+            # Convert JSON back to DataFrame
+            signals_df = pd.read_json(data_json, orient="records")
+            
+            try:
+                # Check if file exists in S3 and load existing data
+                response = s3.get_object(Bucket=bucket_name, Key=object_name)
+                existing_df = pd.read_csv(response['Body'])
+                updated_df = pd.concat([existing_df, signals_df], ignore_index=True)
+            except s3.exceptions.NoSuchKey:
+                updated_df = signals_df  # No existing file, use the current DataFrame
+            except Exception as e:
+                print(f"Error reading S3 file: {e}")
+                return  # Stop if there's an error
 
-    @task.branch
-    def decide_branch(is_valid):
-        return 'load_data' if is_valid else 'skip_load'
+            # Write updated DataFrame back to S3 as CSV
+            csv_buffer = StringIO()
+            updated_df.to_csv(csv_buffer, index=False)
+            s3.put_object(Bucket=bucket_name, Key=object_name, Body=csv_buffer.getvalue())
+            print("Signals exported to S3 successfully.")
 
-    @task
-    def load_data():
-        return 'Data loaded successfully'
+    # Task 3: Extract data from S3
+    @task(task_id='extract_from_s3')
+    def extract_from_s3():
+        s3 = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY, region_name=REGION_NAME)
+        bucket_name = BUCKET_NAME
+        object_name = OBJECT_NAME
 
-    skip_load = EmptyOperator(task_id="skip_load")
+        try:
+            response = s3.get_object(Bucket=bucket_name, Key=object_name)
+            return response['Body'].read().decode('utf-8')
+        except s3.exceptions.NoSuchKey:
+            return None
 
-    data = extract()
-    transformed_data = transform(data)
-    is_valid = check_data(transformed_data)
-    branch = decide_branch(is_valid)
-    branch >> load_data()
-    branch >> skip_load
+    # DAG Execution
+    data_json = extract_btc_price()
+    upload_to_s3(data_json)
+    extract_from_s3()
 
-etl_dag = etl_taskflow_with_real_data()
+
+etl_btc_data = etl_btc_data()
