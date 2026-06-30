@@ -3,6 +3,8 @@ venv
 csv/
 logs/
 env
+.env
+*.env
 scheduler/
 __pycache__/
 logs
@@ -10,3 +12,4 @@ scheduler
 ignoredags
 credentials
 logs
+.DS_Store
